@@ -81,18 +81,8 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
     pathImages.forEach((url) => void url.then((value) => value && URL.revokeObjectURL(value)))
   })
 
-  const interaction = createComposerEditorState(prompt.mode.current())
-  createEffect(
-    on(
-      () => (adapter.ready() ? prompt.mode.current() : undefined),
-      (mode) => {
-        if (!mode) return
-        // Project external draft changes without another mode write clearing restored retry metadata.
-        interaction[1](mode === "shell" ? { mode, popover: { type: "closed" } } : { mode })
-      },
-    ),
-  )
-  const mode = () => interaction[0].mode
+  const interaction = createComposerEditorState()
+  const mode = () => prompt.mode.current()
   const history = createComposerHistory()
 
   const recent = createMemo(() => {
@@ -315,7 +305,6 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
     addToHistory: (value, mode) => controller.addHistory(value, mode),
     removeFromHistory: (value, mode, comments) => history.remove(value, mode, mode === "shell" ? [] : comments),
     resetHistory: () => controller.resetHistory(),
-    setMode: (next) => controller.dispatch({ type: next === "shell" ? "mode.shell" : "mode.normal" }),
     closePopover: () => controller.dispatch({ type: "popover.close" }),
     delivery: (alternate) => {
       const queue = options?.queue
@@ -606,7 +595,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
       category: language.t("command.category.file"),
       keybind: "mod+u",
       editable: true,
-      disabled: controller.state.mode !== "normal",
+      disabled: mode() !== "normal",
       onSelect: () => controller.attach(),
     },
     {
@@ -614,21 +603,20 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
       title: language.t("command.prompt.mode.toggle"),
       category: language.t("command.category.session"),
       keybind: "mod+shift+x",
-      onSelect: () =>
-        void controller.dispatch({ type: controller.state.mode === "normal" ? "mode.shell" : "mode.normal" }),
+      onSelect: () => void controller.dispatch({ type: mode() === "normal" ? "mode.shell" : "mode.normal" }),
     },
     {
       id: "prompt.mode.shell",
       title: language.t("command.prompt.mode.shell"),
       category: language.t("command.category.session"),
-      disabled: controller.state.mode === "shell",
+      disabled: mode() === "shell",
       onSelect: () => void controller.dispatch({ type: "mode.shell" }),
     },
     {
       id: "prompt.mode.normal",
       title: language.t("command.prompt.mode.normal"),
       category: language.t("command.category.session"),
-      disabled: controller.state.mode === "normal",
+      disabled: mode() === "normal",
       onSelect: () => void controller.dispatch({ type: "mode.normal" }),
     },
   ])
